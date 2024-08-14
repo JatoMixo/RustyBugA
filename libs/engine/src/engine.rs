@@ -11,6 +11,8 @@ pub trait EngineController {
     fn backward(&mut self, duty: u16);
     fn left(&mut self, duty: u16, delta: u16);
     fn right(&mut self, duty: u16, delta: u16);
+    fn rotate_left(&mut self, duty: u16);
+    fn rotate_right(&mut self, duty: u16);
     fn stop(&mut self);
 }
 
@@ -55,6 +57,20 @@ impl<A: MotorController, B: MotorController> EngineController for Engine<A, B> {
         self.left.set_duty(duty);
         self.right.forward();
         self.right.set_duty(duty - delta);
+    }
+
+    fn rotate_left(&mut self, duty: u16) {
+        self.left.backward();
+        self.left.set_duty(duty);
+        self.right.forward();
+        self.right.set_duty(duty);
+    }
+
+    fn rotate_right(&mut self, duty: u16) {
+        self.left.forward();
+        self.left.set_duty(duty);
+        self.right.backward();
+        self.right.set_duty(duty);
     }
 
     fn stop(&mut self) {

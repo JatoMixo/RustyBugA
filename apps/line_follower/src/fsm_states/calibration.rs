@@ -24,7 +24,7 @@ use crate::line_follower_status::LineFollowerStatus;
 
 use logging::Logger;
 
-pub fn run(status: & mut  LineFollowerStatus) -> FSMEvent {
+pub fn run(status: &mut LineFollowerStatus) -> FSMEvent {
     let mut logger = Logger::new(&mut status.board.serial.tx);
     logger.log("Calibration state\r\n");
 
@@ -37,10 +37,12 @@ pub fn run(status: & mut  LineFollowerStatus) -> FSMEvent {
         if status.board.btn_1.is_pressed() {
             break;
         }
+
         if status.board.btn_2.is_pressed() {
             logger.log("Exit calibration\r\n");
             return FSMEvent::Button2Pressed;
         }
+
         if let Ok(serial_input) = status.board.serial.rx.read() {
             match serial_input {
                 b'1' => break,
@@ -54,7 +56,12 @@ pub fn run(status: & mut  LineFollowerStatus) -> FSMEvent {
     }
 
     logger.log("Calibration started\r\n");
-    // Calibration here
+
+    let mut engine = status.board.engine;
+    let mut light_sensor_array = status.board.light_sensor_array;
+
+
+
     status.board.delay.delay_ms(3000u32);
 
     logger.log("Calibration done\r\n");

@@ -183,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn test_engine_rigth() {
+    fn test_engine_right() {
         // given
         let (mut left, mut right) = get_motors();
         left.expect_set_state()
@@ -209,5 +209,59 @@ mod tests {
         // when
         let mut engine = Engine::new(left, right);
         engine.right(10, 5);
+    }
+
+    #[test]
+    fn test_engine_rotate_left() {
+        // given
+        let (mut left, mut right) = get_motors();
+        left.expect_set_state()
+            .with(eq(MotorState::Backward))
+            .times(1)
+            .returning(|_| ());
+        left.expect_set_duty()
+            .with(eq(10))
+            .times(1)
+            .returning(|_| ());
+
+        right.expect_set_state()
+            .with(eq(MotorState::Forward))
+            .times(1)
+            .returning(|_| ());
+        right.expect_set_duty()
+            .with(eq(10))
+            .times(1)
+            .returning(|_| ());
+
+        // when
+        let mut engine = Engine::new(left, right);
+        engine.rotate_left(10);
+    }
+
+    #[test]
+    fn test_engine_rotate_right() {
+        // given
+        let (mut left, mut right) = get_motors();
+        left.expect_set_state()
+            .with(eq(MotorState::Forward))
+            .times(1)
+            .returning(|_| ());
+        left.expect_set_duty()
+            .with(eq(10))
+            .times(1)
+            .returning(|_| ());
+
+        right.expect_set_state()
+            .with(eq(MotorState::Backward))
+            .times(1)
+            .returning(|_| ());
+        right.expect_set_duty()
+            .with(eq(10))
+            .times(1)
+            .returning(|_| ());
+
+        // when
+        let mut engine = Engine::new(left, right);
+        engine.rotate_right(10);
     }
 }

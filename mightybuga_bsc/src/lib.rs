@@ -22,7 +22,7 @@ use engine::engine::Engine;
 use engine::motor::Motor;
 use stm32f1xx_hal::timer::PwmChannel;
 
-mod light_sensor_array;
+pub mod light_sensor_array;
 use light_sensor_array::LightSensorArray;
 
 mod battery_sensor;

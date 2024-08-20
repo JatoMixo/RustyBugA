@@ -59,6 +59,7 @@ impl<A: MotorController, B: MotorController> EngineController for Engine<A, B> {
         self.right.set_duty(duty - delta);
     }
 
+    // duty goes from 0 to 65535
     fn rotate_left(&mut self, duty: u16) {
         self.left.backward();
         self.left.set_duty(duty);
@@ -66,6 +67,7 @@ impl<A: MotorController, B: MotorController> EngineController for Engine<A, B> {
         self.right.set_duty(duty);
     }
 
+    // duty goes from 0 to 65535
     fn rotate_right(&mut self, duty: u16) {
         self.left.forward();
         self.left.set_duty(duty);

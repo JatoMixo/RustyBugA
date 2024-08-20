@@ -18,6 +18,9 @@ use hal_button::ButtonController;
 use mightybuga_bsc::prelude::*;
 use mightybuga_bsc::timer_based_buzzer::TimerBasedBuzzer;
 use mightybuga_bsc::timer_based_buzzer::TimerBasedBuzzerInterface;
+use mightybuga_bsc::light_sensor_array::LightSensorArray;
+use light_sensor_array_controller::LightSensorArrayController;
+use engine::engine::EngineController;
 
 use crate::fsm::FSMEvent;
 use crate::line_follower_status::LineFollowerStatus;
@@ -57,11 +60,27 @@ pub fn run(status: &mut LineFollowerStatus) -> FSMEvent {
 
     logger.log("Calibration started\r\n");
 
-    let mut engine = status.board.engine;
-    let mut light_sensor_array = status.board.light_sensor_array;
+    status.board.light_sensor_array.set_led(true);
 
+    let mut min_values = [0; 8];
+    let mut max_values = [0; 8];
 
+    for _ in 0..6 {
+        rotate_degrees(&mut status.board.engine, &mut status.board.delay, 45, RotationDirection::Left);
+        update_min_and_max_values(&mut status.board.light_sensor_array, &mut min_values, &mut max_values);
 
+        for _ in 0..9 {
+            rotate_degrees(&mut status.board.engine, &mut status.board.delay, 10, RotationDirection::Right);
+            update_min_and_max_values(&mut status.board.light_sensor_array, &mut min_values, &mut max_values);
+        }
+
+        rotate_degrees(&mut status.board.engine, &mut status.board.delay, 45, RotationDirection::Left);
+        update_min_and_max_values(&mut status.board.light_sensor_array, &mut min_values, &mut max_values);
+    }
+
+    status.light_sensor_thresholds = Some(calculate_light_thresholds(max_values, min_values));
+
+    status.board.light_sensor_array.set_led(false);
     status.board.delay.delay_ms(3000u32);
 
     logger.log("Calibration done\r\n");
@@ -88,6 +107,70 @@ pub fn run(status: &mut LineFollowerStatus) -> FSMEvent {
             }
         }
     }
+}
+
+enum RotationDirection {
+    Left,
+    Right,
+}
+
+fn update_min_and_max_values(
+    light_sensor_array: &mut LightSensorArray,
+    min_values: &mut [u16; 8],
+    max_values: &mut [u16; 8]
+) {
+    let light_map = light_sensor_array.get_light_map();
+
+    light_map.iter().enumerate().for_each(|(index, &light_value)| {
+        if light_value > max_values[index] {
+            max_values[index] = light_value;
+        }
+
+        if light_value < min_values[index] {
+            min_values[index] = light_value;
+        }
+    });
+}
+
+fn rotate_degrees<T: EngineController>(
+    engine: &mut T,
+    delay: &mut SysDelay,
+    degrees: u32,
+    direction: RotationDirection
+) {
+    // TODO: Get proper values for this using the line follower
+    const ROTATION_DUTY: u16 = u16::MAX / 5;
+    const FULL_ROTATION_TIME: u32 = 1000u32; // Time that takes rotating 360 degrees
+
+    match direction {
+        RotationDirection::Left => {
+            engine.rotate_left(ROTATION_DUTY);
+        },
+        RotationDirection::Right => {
+            engine.rotate_right(ROTATION_DUTY);
+        }
+    }
+
+
+    let rotation_time = (FULL_ROTATION_TIME / 360) * degrees;
+    delay.delay_ms(rotation_time);
+
+    engine.stop();
+}
+
+fn calculate_light_thresholds(
+    max_values: [u16; 8],
+    min_values: [u16; 8]
+) -> [u16; 8] {
+    let mut thresholds: [u16; 8] = [0; 8];
+
+    max_values.iter().enumerate().for_each(|(index, &max_value)| {
+        let min_value = min_values[index];
+
+        thresholds[index] = (max_value + min_value) / 2;
+    });
+
+    thresholds
 }
 
 fn beep(buzzer: &mut TimerBasedBuzzer, delay: &mut SysDelay) {

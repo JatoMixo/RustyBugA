@@ -28,7 +28,7 @@ use line_follower_status::LineFollowerStatus;
 fn main() -> ! {
     let board = board::Mightybuga_BSC::take().unwrap();
 
-    let mut line_follower_status = LineFollowerStatus { board };
+    let mut line_follower_status = LineFollowerStatus { board, light_sensor_thresholds: None };
 
     let mut fsm_state = FSMState::Idle {};
     let mut fsm_event;

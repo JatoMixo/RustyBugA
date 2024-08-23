@@ -65,17 +65,30 @@ pub fn run(status: &mut LineFollowerStatus) -> FSMEvent {
     let mut min_values = [0; 8];
     let mut max_values = [0; 8];
 
+    // For calibrating the sensor, we choose a direction and rotate until the line is in the
+    // opposite light sensor, then we rotate in the other direction and repeat. While we move, we
+    // get the values from the light sensor array and store the maximums and minimums to then
+    // calculate the threshold where the line can be found.
+
+    let mut direction = RotationDirection::Left;
     for _ in 0..6 {
-        rotate_degrees(&mut status.board.engine, &mut status.board.delay, 45, RotationDirection::Left);
-        update_min_and_max_values(&mut status.board.light_sensor_array, &mut min_values, &mut max_values);
 
-        for _ in 0..9 {
-            rotate_degrees(&mut status.board.engine, &mut status.board.delay, 10, RotationDirection::Right);
-            update_min_and_max_values(&mut status.board.light_sensor_array, &mut min_values, &mut max_values);
+        let light_values = status.board.light_sensor_array.get_light_map();
+
+        loop {
+            rotate_direction(&mut status.board.engine, &mut status.board.delay, &direction);
+            update_min_and_max_values(&light_values, &mut min_values, &mut max_values);
+
+            if get_min_value_of_array(&light_values) == light_values[0] {
+                direction = RotationDirection::Left;
+                break;
+            }
+
+            if get_min_value_of_array(&light_values) == light_values[7] {
+                direction = RotationDirection::Right;
+                break;
+            }
         }
-
-        rotate_degrees(&mut status.board.engine, &mut status.board.delay, 45, RotationDirection::Left);
-        update_min_and_max_values(&mut status.board.light_sensor_array, &mut min_values, &mut max_values);
     }
 
     status.light_sensor_thresholds = Some(calculate_light_thresholds(max_values, min_values));
@@ -109,19 +122,29 @@ pub fn run(status: &mut LineFollowerStatus) -> FSMEvent {
     }
 }
 
+fn get_min_value_of_array(array: &[u16; 8]) -> u16 {
+    let mut min = u16::MAX;
+
+    for &element in array {
+        if element < min {
+            min = element;
+        }
+    }
+
+    min
+}
+
 enum RotationDirection {
     Left,
     Right,
 }
 
 fn update_min_and_max_values(
-    light_sensor_array: &mut LightSensorArray,
+    light_values: &[u16; 8],
     min_values: &mut [u16; 8],
     max_values: &mut [u16; 8]
 ) {
-    let light_map = light_sensor_array.get_light_map();
-
-    light_map.iter().enumerate().for_each(|(index, &light_value)| {
+    light_values.iter().enumerate().for_each(|(index, &light_value)| {
         if light_value > max_values[index] {
             max_values[index] = light_value;
         }
@@ -132,17 +155,16 @@ fn update_min_and_max_values(
     });
 }
 
-fn rotate_degrees<T: EngineController>(
+fn rotate_direction<T: EngineController>(
     engine: &mut T,
     delay: &mut SysDelay,
-    degrees: u32,
-    direction: RotationDirection
+    direction: &RotationDirection
 ) {
-    // TODO: Get proper values for this using the line follower
+    // TODO: Get proper values for this
     const ROTATION_DUTY: u16 = u16::MAX / 5;
-    const FULL_ROTATION_TIME: u32 = 1000u32; // Time that takes rotating 360 degrees
+    const ROTATION_TIME_MS: u32 = 50u32;
 
-    match direction {
+    match &direction {
         RotationDirection::Left => {
             engine.rotate_left(ROTATION_DUTY);
         },
@@ -152,9 +174,7 @@ fn rotate_degrees<T: EngineController>(
     }
 
 
-    let rotation_time = (FULL_ROTATION_TIME / 360) * degrees;
-    delay.delay_ms(rotation_time);
-
+    delay.delay_ms(ROTATION_TIME_MS);
     engine.stop();
 }
 
